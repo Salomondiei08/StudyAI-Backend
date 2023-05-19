@@ -3,19 +3,17 @@ import pprint
 from serpapi import GoogleSearch
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=".env.template")
-SERP_API_KEY = os.getenv("SERP_API_KEY")
 
 # Get articles from gloogle scholars
-def get_articles(query: str):
+def get_articles(query: str, limit: int, key:str):
     print("Getting Articles...")
     # Serpa API params
     params = {
-        "api_key": SERP_API_KEY,
+        "api_key": key,
         "engine": "google_scholar",
         "q": query,
         "hl": "en",
-        "num":20
+        "num": limit
     }
 
     # Run the API
@@ -48,4 +46,3 @@ def get_articles(query: str):
 
     pprint.pprint(result_list)
     return result_list
-get_articles("ChatGPT")

@@ -1,6 +1,5 @@
 import os
 import tempfile
-from dotenv import load_dotenv
 from langchain.vectorstores import Pinecone
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.document_loaders import PyPDFLoader
@@ -11,19 +10,10 @@ import openai
 import pinecone
 import requests
 
-load_dotenv(dotenv_path=".env.template")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 
 # Load and split the file
 def load_and_split_the_file(url: str):
     print("Loading and spliting the file...")
-
-    # Initialize Pinecone DB
-    pinecone.init(
-        api_key=PINECONE_API_KEY,  # find at app.pinecone.io
-        environment="us-central1-gcp"  # next to api key in console
-    )
 
     # Send a GET request to retrieve the PDF file
     response = requests.get(url)
@@ -43,7 +33,9 @@ def load_and_split_the_file(url: str):
     return docs, tempfile_path
 
 # Load and vectorize the file
-def load_and_vectorize_file(url: str):
+
+
+def load_and_vectorize_file(url: str, pinecone_key: str, openai_api_key: str):
 
     # Get namespace Name
     name_space = url.split("/")[-1].split("?")[0]
@@ -52,10 +44,13 @@ def load_and_vectorize_file(url: str):
     index_name = "study-genius"
 
     # OpenAI embeddings
-    embeddings = OpenAIEmbeddings()
+    embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
 
-    # Get the loaded Document
-    docs = load_and_split_the_file(url)
+    # Initialize Pinecone DB
+    pinecone.init(
+        api_key=pinecone_key,  # find at app.pinecone.io
+        environment="us-central1-gcp"  # next to api key in console
+    )
 
     # Get info from db
     index = pinecone.Index(index_name)
@@ -66,20 +61,25 @@ def load_and_vectorize_file(url: str):
     # Verifies if the namespace exits
     if name_space in namespaces_list:
         print('Namespace already exists')
-        
+        return {"Eerror": "Namespace already exists"}
     else:
+        # Get the loaded Document
+        docs = load_and_split_the_file(url)
         print("Loading the file on the vector db...")
 
         # Store the embeddings in the database
         Pinecone.from_documents(
             docs[0], embeddings, index_name=index_name, namespace=name_space)
+    return {'tempfile_path': docs[1], "Results": "File added succesfuly"}
 
 # Chat with PDF
-def chat_with_pdf(query: str, url: str, chat_history: list | None):
+
+
+def chat_with_pdf(query: str, url: str, chat_history: list | None, pinecone_key: str, openai_api_key: str):
     print("Chating the the pdf...")
   # Initialize Pinecone DB
     pinecone.init(
-        api_key=PINECONE_API_KEY,  # find at app.pinecone.io
+        api_key=pinecone_key,  # find at app.pinecone.io
         environment="us-central1-gcp"  # next to api key in console
     )
 
@@ -90,27 +90,29 @@ def chat_with_pdf(query: str, url: str, chat_history: list | None):
     # Get name space name
     name_space = url.split("/")[-1].split("?")[0]
     # Get the vectorstore
-    vectorstore = Pinecone(index, OpenAIEmbeddings().embed_query,
+    vectorstore = Pinecone(index, OpenAIEmbeddings(openai_api_key=openai_api_key).embed_query,
                            "text", namespace=name_space)
 
     # Talk to the LLM
-    qa = ConversationalRetrievalChain.from_llm(llm=OpenAI(
-        temperature=0), retriever=vectorstore.as_retriever(),)
+    qa = ConversationalRetrievalChain.from_llm(llm=OpenAI(openai_api_key=openai_api_key,
+                                                          temperature=0), retriever=vectorstore.as_retriever())
 
     # Run the query
     result = qa({"question": query, "chat_history": chat_history})
     print(result['answer'])
     # return the anwser
-    return result
+    return result['answer']
 
 # Generate Quiz from PDF
-def generate_quiz_from_pdf(url: str):
+
+
+def generate_quiz_from_pdf(url: str, pinecone_key: str, openai_api_key: str):
 
     print("Generating Quiz Questions....")
 
     # Set up pinecone db
     pinecone.init(
-        api_key=PINECONE_API_KEY,  # find at app.pinecone.io
+        api_key=pinecone_key,  # find at app.pinecone.io
         environment="us-central1-gcp"  # next to api key in console
     )
 
@@ -122,7 +124,7 @@ def generate_quiz_from_pdf(url: str):
     name_space = url.split("/")[-1].split("?")[0]
 
     # Get the vectorstore
-    vectorstore = Pinecone(index, OpenAIEmbeddings().embed_query,
+    vectorstore = Pinecone(index, OpenAIEmbeddings(openai_api_key=openai_api_key).embed_query,
                            "text", namespace=name_space)
 
     # Perform similarity check
@@ -164,7 +166,7 @@ def generate_quiz_from_pdf(url: str):
       }
    ]
      '''
-
+    openai.api_key = openai_api_key
     # Method for GPT3 (You can use it if you have access to the GPT4 API)
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
@@ -179,10 +181,12 @@ def generate_quiz_from_pdf(url: str):
     return response.choices[0]["message"]["content"]
 
 # Generate FlashCard
-def generate_flash_cards_from_pdf(url: str):
+
+
+def generate_flash_cards_from_pdf(url: str, pinecone_key: str, openai_api_key: str):
 
     pinecone.init(
-        api_key=PINECONE_API_KEY,  # find at app.pinecone.io
+        api_key=pinecone_key,  # find at app.pinecone.io
         environment="us-central1-gcp"  # next to api key in console
     )
 
@@ -192,7 +196,7 @@ def generate_flash_cards_from_pdf(url: str):
     print("Generating Flash Cards....")
     name_space = url.split("/")[-1].split("?")[0]
 
-    vectorstore = Pinecone(index, OpenAIEmbeddings().embed_query,
+    vectorstore = Pinecone(index, OpenAIEmbeddings(openai_api_key=openai_api_key).embed_query,
                            "text", namespace=name_space)
     # Perform similarity check
     docs = vectorstore.similarity_search(
@@ -210,7 +214,7 @@ def generate_flash_cards_from_pdf(url: str):
       },
    ]
      '''
-
+    openai.api_key = openai_api_key
     # Method for GPT3 (You can use it if you have access to the GPT4 API)
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
@@ -225,13 +229,15 @@ def generate_flash_cards_from_pdf(url: str):
     return response.choices[0]["message"]["content"]
 
 # Summerize the PDF
-def summerize_pdf(tempfile_path: str):
+
+
+def summerize_pdf(tempfile_path: str, openai_key: str):
 
     # Load the documents
     loader = PyPDFLoader(tempfile_path)
     docs = loader.load_and_split()
 
-    llm = OpenAI(temperature=0)
+    llm = OpenAI(temperature=0, openai_api_key=openai_key)
 
     print('Summarizing the file...')
     chain = load_summarize_chain(llm, chain_type="map_reduce")
@@ -240,17 +246,3 @@ def summerize_pdf(tempfile_path: str):
 
     os.remove(tempfile_path)
     return summary
-
-# Chat with PDF
-def chat_with_ai_genius(query: str, chat_history: list | None):
-    print("Chating the the AI Genius...")
-
-    # Talk to the LLM
-    qa = ConversationalRetrievalChain.from_llm(llm=OpenAI(
-        temperature=0))
-
-    # Run the query
-    result = qa({"question": query, "chat_history": chat_history})
-    print(result['answer'])
-    # return the anwser
-    return result

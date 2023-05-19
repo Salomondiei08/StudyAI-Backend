@@ -1,3 +1,3 @@
 venv/ 
-.env.template
+.env
 __pycache__

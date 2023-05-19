@@ -3,24 +3,21 @@ from googleapiclient.discovery import build
 import pprint
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=".env.template")
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-
 
 # Get youtube results
-def get_youtube_videos(query: str):
+def get_youtube_videos(query: str, limit: str, key:str):
 
     print("Getting Videos...")
 
     # Define the YouTube API client
-    youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+    youtube = build("youtube", "v3", developerKey=key)
 
     # Call the search.list method to retrieve video results
     search_response = youtube.search().list(
         q=query,
         type="video",
         part="id,snippet",
-        maxResults=10  # Change the number of results as per your need
+        maxResults=limit  # Change the number of results as per your need
     ).execute()
 
     # Create a new json and return the wanted data
