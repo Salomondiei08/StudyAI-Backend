@@ -1,7 +1,5 @@
-import os
 from googleapiclient.discovery import build
 import pprint
-from dotenv import load_dotenv
 
 
 # Get youtube results

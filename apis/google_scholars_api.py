@@ -1,7 +1,5 @@
-import os
 import pprint
 from serpapi import GoogleSearch
-from dotenv import load_dotenv
 
 
 # Get articles from gloogle scholars
